@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { @apply border-slate-200; }
+  html { @apply scroll-smooth; }
+  body { @apply m-0 bg-cream font-sans antialiased; font-family: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif; }
+  button, input { font: inherit; }
+}
+
+@layer utilities {
+  .h-18 { height: 4.5rem; }
+}
