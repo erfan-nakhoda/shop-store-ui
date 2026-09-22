@@ -5,7 +5,20 @@ export function readCollection(payload, key = 'products') {
     if (Array.isArray(value)) return { items: value, count: value.length }
     if (!value || typeof value !== 'object') break
     const items = value[key] ?? value.items
-    if (Array.isArray(items)) return { items, count: Number.isFinite(Number(value.count)) ? Number(value.count) : items.length }
+    if (Array.isArray(items)) {
+      const pagination = value.pagination
+      const result = { items, count: Number.isFinite(Number(value.count)) ? Number(value.count) : items.length }
+      if (pagination && typeof pagination === 'object') {
+        result.pagination = {
+          totalCount: Number(pagination.totalCount ?? result.count),
+          totalPage: Number(pagination.totalPage ?? 1),
+          countPerPage: Number(pagination.countPerPage ?? items.length),
+          page: Number(pagination.page ?? 1),
+        }
+        result.count = result.pagination.totalCount
+      }
+      return result
+    }
     value = value.data
   }
   throw new Error('The API returned an unexpected collection format.')

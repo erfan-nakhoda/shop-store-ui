@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_PROXY_TARGET || 'http://localhost:4000'
+const API_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
 export const apiRoutes = {
   products: import.meta.env.VITE_PRODUCTS_ROUTE || '/product',
   categories: import.meta.env.VITE_CATEGORIES_ROUTE || '/category',
@@ -116,11 +116,19 @@ export const profileApi = {
 }
 
 export const ordersApi = {
-  list: () => api.get(import.meta.env.VITE_ORDERS_ROUTE || '/orders'),
+  list: (config = {}) => api.get(import.meta.env.VITE_ORDERS_ALL_ROUTE || '/order/all', {
+    ...config,
+    params: { page: 1, limit: 10, ...(config.params || {}) },
+  }),
+  get: (id) => api.get(`${import.meta.env.VITE_ORDER_ROUTE || '/order'}/${encodeURIComponent(id)}`),
+  set: () => api.post(import.meta.env.VITE_ORDER_SET_ROUTE || '/order/set'),
 }
 
 export const productsApi = {
-  list: (config) => api.get(`${apiRoutes.products}/all`, config),
+  list: (config = {}) => api.get(`${apiRoutes.products}/all`, {
+    ...config,
+    params: { page: 1, limit: 10, ...(config.params || {}) },
+  }),
   get: (id, config) => api.get(`${apiRoutes.products}/get/${encodeURIComponent(id)}`, config),
   listByCategory: (categoryId, config) => api.get((import.meta.env.VITE_PRODUCTS_BY_CATEGORY_ROUTE || `${apiRoutes.products}/all/:categoryId`).replace(':categoryId', encodeURIComponent(categoryId)), config),
   create: (payload) => api.post(`${apiRoutes.products}/create`, payload),

@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authApi, basketApi, getApiMessage, unwrapApi, unwrapUser } from '../lib/api'
+import { numericValue } from '../lib/format'
 
 const AppContext = createContext(null)
 
@@ -7,18 +8,21 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('captain_user') || 'null'))
   const [basket, setBasket] = useState(() => JSON.parse(localStorage.getItem('captain_basket') || '[]'))
   const [basketError, setBasketError] = useState('')
+  const basketVersion = useRef(0)
 
   useEffect(() => {
     localStorage.setItem('captain_basket', JSON.stringify(basket))
   }, [basket])
 
   useEffect(() => {
+    const version = ++basketVersion.current
     const userId = user?.id || user?._id || user?.userId
     if (!userId) {
       setBasket([])
       return
     }
     basketApi.get(userId).then(({ data }) => {
+      if (version !== basketVersion.current) return
       const envelope = unwrapApi(data)
       const items = envelope?.items || envelope?.products || (Array.isArray(envelope) ? envelope : null)
       if (!Array.isArray(items)) return
@@ -33,8 +37,9 @@ export function AppProvider({ children }) {
         quantity: Number(item.quantity ?? item.count ?? 1),
       })))
     }).catch(() => {
-      setBasket([])
+      if (version === basketVersion.current) setBasket([])
     })
+    return () => { basketVersion.current += 1 }
   }, [user?.id, user?._id, user?.userId])
 
   useEffect(() => {
@@ -101,10 +106,17 @@ export function AppProvider({ children }) {
     setBasket((items) => items.filter((entry) => entry.id !== id))
   }
 
+  const clearBasket = () => {
+    basketVersion.current += 1
+    setBasket([])
+    setBasketError('')
+    localStorage.setItem('captain_basket', '[]')
+  }
+
   const value = useMemo(() => ({
-    user, login, saveSession, logout, basket, basketError, addToBasket, updateQuantity, removeFromBasket,
+    user, login, saveSession, logout, basket, basketError, addToBasket, updateQuantity, removeFromBasket, clearBasket,
     basketCount: basket.reduce((sum, item) => sum + item.quantity, 0),
-    basketTotal: basket.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    basketTotal: basket.reduce((sum, item) => sum + numericValue(item.price) * item.quantity, 0),
   }), [user, basket, basketError])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

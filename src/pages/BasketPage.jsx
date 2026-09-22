@@ -1,10 +1,27 @@
 import { ArrowRight, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { formatToman } from '../lib/format'
+import { getApiMessage, ordersApi } from '../lib/api'
 
 export function BasketPage() {
-  const { basket, basketError, basketTotal, updateQuantity, removeFromBasket } = useApp()
+  const { basket, basketError, basketTotal, updateQuantity, removeFromBasket, clearBasket } = useApp()
+  const navigate = useNavigate()
+  const [ordering, setOrdering] = useState(false)
+  const [orderError, setOrderError] = useState('')
+  const createOrder = async () => {
+    if (ordering) return
+    setOrdering(true); setOrderError('')
+    try {
+      const { data } = await ordersApi.set()
+      clearBasket()
+      const value = data?.data ?? data
+      const id = value?.id || value?.orderId || value?.order?.id
+      navigate(id ? `/order/${encodeURIComponent(id)}` : '/profile')
+    } catch (error) { setOrderError(getApiMessage(error)) }
+    finally { setOrdering(false) }
+  }
   if (!basket.length) return <section className="mx-auto grid min-h-[58vh] max-w-7xl place-items-center px-4 text-center">
     <div><div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-3xl bg-cyan-100 text-cyan-700"><ShoppingBag /></div><h1 className="text-3xl font-bold">سبد خریدتان منتظر شماست.</h1><p className="mt-2 text-slate-500">چند انتخاب خوب اضافه کنید تا اینجا ببینیدشان.</p><Link to="/products" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-4 py-3 font-semibold text-white">مشاهده محصولات <ArrowRight className="rotate-180" size={16} /></Link></div>
   </section>
@@ -24,7 +41,8 @@ export function BasketPage() {
         <h2 className="text-lg font-semibold">خلاصه سفارش</h2>
         <div className="mt-5 space-y-3 border-b border-white/10 pb-5 text-sm text-slate-300"><p className="flex justify-between"><span>جمع کالاها</span><span>{formatToman(basketTotal)}</span></p><p className="flex justify-between"><span>ارسال</span><span className="text-cyan-300">رایگان</span></p></div>
         <p className="mt-5 flex justify-between text-lg font-bold"><span>مبلغ نهایی</span><span>{formatToman(basketTotal)}</span></p>
-        <button className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-3 font-semibold text-ink transition hover:bg-aqua">ادامه و پرداخت <ArrowRight className="rotate-180" size={17} /></button>
+        {orderError && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{orderError}</p>}
+        <button onClick={createOrder} disabled={ordering} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-3 font-semibold text-ink transition hover:bg-aqua disabled:opacity-60">{ordering ? 'در حال ثبت سفارش…' : 'ادامه و پرداخت'} <ArrowRight className="rotate-180" size={17} /></button>
         <p className="mt-3 text-center text-xs text-slate-400">مرحله پرداخت را می‌توان به API سفارش‌ها متصل کرد.</p>
       </aside>
     </div>

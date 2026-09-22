@@ -7,10 +7,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api': {
+        '^/api(?:/|$)': {
           target: env.VITE_API_PROXY_TARGET || 'http://localhost:4000',
           changeOrigin: true,
           secure: false,
+          rewrite: (path) => path.replace(/^\/api(?=\/|\?|$)/, ''),
         },
       },
     },

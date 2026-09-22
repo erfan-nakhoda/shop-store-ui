@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { RoleGuard } from '../components/RoleGuard'
 import { adminApi, adminCapabilities as capabilities } from '../lib/adminApi'
 import { getApiMessage } from '../lib/api'
+import { formatToman } from '../lib/format'
 import { entityId, readCollection } from '../lib/catalog'
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-cyan-500'
@@ -43,21 +44,27 @@ export function ManagementPage({ title, allowCategories = false }) {
 }
 
 function OrdersManager() {
+  const navigate = useNavigate()
   const [orders, setOrders] = useState([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [page, setPage] = useState(1)
+  const limit = 10
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   useEffect(() => {
     let active = true
     setLoading(true)
-    adminApi.orders.list().then(({ data }) => { if (active) setOrders(readCollection(data, 'orders').items) }).catch(error => { if (active) setError(getApiMessage(error)) }).finally(() => { if (active) setLoading(false) })
+    adminApi.orders.list({ params: { page, limit } }).then(({ data }) => { if (active) { const result = readCollection(data, 'orders'); setOrders(result.items); setTotal(result.pagination?.totalCount ?? result.count); setTotalPages(result.pagination?.totalPage ?? Math.ceil(result.count / limit)) } }).catch(error => { if (active) setError(getApiMessage(error)) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [revision])
+  }, [revision, page])
   const statusNames = { PENDING: 'در انتظار بررسی', CONFIRMED: 'تأیید شده', PROCESSING: 'در حال آماده‌سازی', SHIPPED: 'ارسال شده', DELIVERED: 'تحویل شده', CANCELLED: 'لغو شده' }
   return <div className="rounded-3xl border border-slate-200 bg-white p-6">
     <div className="mb-5 flex items-center justify-between"><div><h2 className="text-xl font-semibold">سفارش‌های مشتریان</h2><p className="mt-1 text-sm text-slate-500">وضعیت سفارش‌ها از API دریافت می‌شود.</p></div><button onClick={() => setRevision(value => value + 1)} className="text-sm font-semibold text-cyan-700">به‌روزرسانی</button></div>
     {error && <p role="alert" className="mb-4 rounded-xl bg-rose-50 p-4 text-rose-700">{error}</p>}
-    {loading ? <p role="status">در حال بارگذاری…</p> : orders.length === 0 ? <p className="text-slate-500">سفارشی پیدا نشد.</p> : <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="p-3">شماره سفارش</th><th className="p-3">مشتری</th><th className="p-3">مبلغ</th><th className="p-3">وضعیت</th></tr></thead><tbody>{orders.map(order => <tr key={entityId(order)} className="border-b border-slate-100"><td className="p-3 font-semibold">{order.orderNumber || order.code || entityId(order)}</td><td className="p-3">{order.user?.phone || order.customer?.phone || order.user?.name || order.customer?.name || '—'}</td><td className="p-3">{order.total ?? order.totalPrice ?? '—'}</td><td className="p-3"><span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800">{statusNames[String(order.status || order.state || 'PENDING').toUpperCase()] || order.status || order.state || 'نامشخص'}</span></td></tr>)}</tbody></table></div>}
+    {loading ? <p role="status">در حال بارگذاری…</p> : orders.length === 0 ? <p className="text-slate-500">سفارشی پیدا نشد.</p> : <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead><tr className="border-b border-slate-200 text-slate-500"><th className="p-3">شماره سفارش</th><th className="p-3">مشتری</th><th className="p-3">مبلغ</th><th className="p-3">وضعیت</th></tr></thead><tbody>{orders.map(order => <tr key={entityId(order)} className="cursor-pointer border-b border-slate-100 hover:bg-cyan-50" onClick={event => { if (!event.target.closest('a')) navigate(`/order/${encodeURIComponent(entityId(order))}`) }}><td className="p-3 font-semibold"><Link to={`/order/${encodeURIComponent(entityId(order))}`} className="text-cyan-700 hover:underline">{order.orderNumber || order.code || entityId(order)}</Link></td><td className="p-3">{order.user?.phone || order.customer?.phone || order.user?.name || order.customer?.name || '—'}</td><td className="p-3">{order.total ?? order.totalPrice ?? '—'}</td><td className="p-3"><span className="rounded-full bg-cyan-50 px-3 py-1 text-cyan-800">{statusNames[String(order.status || order.state || 'PENDING').toUpperCase()] || order.status || order.state || 'نامشخص'}</span></td></tr>)}</tbody></table></div>}
+    {totalPages > 1 && <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><button disabled={loading || page === 1} onClick={() => setPage(value => value - 1)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-40">صفحه قبل</button><span className="text-sm text-slate-500">صفحه {page} از {totalPages}</span><button disabled={loading || page >= totalPages} onClick={() => setPage(value => value + 1)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-40">صفحه بعد</button></div>}
   </div>
 }
 
@@ -67,6 +74,10 @@ function ResourceManager({ kind, allowManage }) {
   const [form, setForm] = useState({ ...definition.empty })
   const [editing, setEditing] = useState(null)
   const [rows, setRows] = useState([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [page, setPage] = useState(1)
+  const limit = 10
   const [categories, setCategories] = useState([])
   const [sites, setSites] = useState([])
   const [loading, setLoading] = useState(true)
@@ -84,7 +95,7 @@ function ResourceManager({ kind, allowManage }) {
     let active = true
     setLoading(true); setError('')
     const jobs = [
-      canList ? adminApi[kind].list().then(({ data }) => { if (active) setRows(readCollection(data, kind === 'support' ? 'users' : kind).items) }) : Promise.resolve(),
+      canList ? adminApi[kind].list(kind === 'products' ? { params: { page, limit } } : undefined).then(({ data }) => { if (active) { const result = readCollection(data, kind === 'support' ? 'users' : kind); setRows(result.items); setTotal(result.pagination?.totalCount ?? result.count); setTotalPages(result.pagination?.totalPage ?? Math.ceil(result.count / limit)) } }) : Promise.resolve(),
       kind !== 'support' ? adminApi.categories.list().then(({ data }) => { if (active) setCategories(readCollection(data, 'categories').items) }) : Promise.resolve(),
       kind === 'support' && capabilities.sitesList ? adminApi.sites.list().then(({ data }) => { if (active) setSites(readCollection(data, 'sites').items) }) : Promise.resolve(),
     ]
@@ -94,7 +105,7 @@ function ResourceManager({ kind, allowManage }) {
       setLoading(false)
     })
     return () => { active = false }
-  }, [kind, revision, canList])
+  }, [kind, revision, canList, page])
 
   const reset = () => { setEditing(null); setForm({ ...definition.empty }) }
   const change = (key, value) => setForm(previous => ({ ...previous, [key]: value }))
@@ -107,7 +118,7 @@ function ResourceManager({ kind, allowManage }) {
     if (saving || !(editing ? canUpdate : canCreate)) return
     setSaving(true); setError(''); setStatus('')
     try {
-      const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '').map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value]))
+      const payload = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== '').map(([key, value]) => [key, key === 'price' ? String(value).replace(/,/g, '') : typeof value === 'string' ? value.trim() : value]))
       if (kind === 'support') payload.role = 'support'
       if (editing) await adminApi[kind].update(kind === 'categories' ? editing.slug : entityId(editing), payload)
       else await adminApi[kind].create(payload)
@@ -151,6 +162,7 @@ function ResourceManager({ kind, allowManage }) {
           {kind === 'products' && <Link className="text-cyan-700" to={`/products/${encodeURIComponent(entityId(row))}`}>مشاهده</Link>}
           {allowManage && <><button disabled={!canUpdate || saving || loading || (kind === 'categories' && !row.slug)} onClick={() => startEdit(row)} className="text-cyan-700 disabled:opacity-40">ویرایش</button><button disabled={!canDelete || saving || loading || (kind === 'categories' && !row.slug)} onClick={() => setDeleting(row)} className="text-rose-700 disabled:opacity-40">حذف</button></>}
         </div></li>)}</ul>
+        {kind === 'products' && totalPages > 1 && <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><button disabled={loading || page === 1} onClick={() => setPage(value => value - 1)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-40">صفحه قبل</button><span className="text-sm text-slate-500">صفحه {page} از {totalPages}</span><button disabled={loading || page >= totalPages} onClick={() => setPage(value => value + 1)} className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-40">صفحه بعد</button></div>}
         {deleting && <div role="alertdialog" aria-label="تأیید حذف" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4"><p>آیا {deleting.name || deleting.phone} حذف شود؟ این عملیات قابل بازگشت نیست.</p><div className="mt-3 flex gap-4"><button disabled={saving} onClick={remove} className={buttonClass}>تأیید حذف</button><button disabled={saving} onClick={() => setDeleting(null)}>انصراف</button></div></div>}
       </div>
     </div>

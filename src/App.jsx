@@ -10,6 +10,7 @@ import { ProductsPage } from './pages/ProductsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { AdminPage } from './pages/AdminPage'
 import { SupportPage } from './pages/SupportPage'
+import { OrderPage } from './pages/OrderPage'
 
 export default function App() {
   return <BrowserRouter><AppProvider><Layout><Routes>
@@ -21,6 +22,7 @@ export default function App() {
     <Route path="/profile" element={<ProfilePage />} />
     <Route path="/admin" element={<AdminPage />} />
     <Route path="/support" element={<SupportPage />} />
+    <Route path="/order/:id" element={<OrderPage />} />
     <Route path="/auth" element={<AuthPage />} />
     <Route path="/auth/login" element={<AuthPage />} />
     <Route path="/auth/signup" element={<AuthPage />} />
