@@ -140,8 +140,8 @@ export const categoriesApi = {
   create: (payload) => api.post(`${apiRoutes.categories}/create`, payload),
   updateBySlug: (slug, payload) => api.patch(`${apiRoutes.categories}/update/${encodeURIComponent(slug)}`, payload),
   updateById: (id, payload) => api.patch(`${apiRoutes.categories}/update/${encodeURIComponent(id)}`, payload),
-  deleteBySlug: (slug) => api.delete(`${apiRoutes.categories}/delete/${encodeURIComponent(slug)}`),
-  deleteById: (id) => api.delete(`${apiRoutes.categories}/delete/${encodeURIComponent(id)}`),
+  deleteBySlug: (slug) => api.delete(`${apiRoutes.categories}/delete-slug/${encodeURIComponent(slug)}`),
+  deleteById: (id) => api.delete(`${apiRoutes.categories}/delete-id/${encodeURIComponent(id)}`),
 }
 
 export const basketApi = {
